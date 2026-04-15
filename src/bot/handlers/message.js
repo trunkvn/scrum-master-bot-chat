@@ -5,7 +5,13 @@ const reportService = require("../../services/report.service");
 const { formatMyCards, formatCard } = require("../../utils/formatter");
 const { createLogger } = require("../../utils/logger");
 const { Markup } = require("telegraf");
-const { setLastCardId, getLastCardId, setPendingDelete, getHistory, addMessageToHistory } = require("../context/memory");
+const {
+  setLastCardId,
+  getLastCardId,
+  setPendingDelete,
+  getHistory,
+  addMessageToHistory,
+} = require("../context/memory");
 
 const log = createLogger("message");
 
@@ -26,6 +32,17 @@ function extractAllCardIds(text) {
   return Array.from(new Set(ids)).filter((n) => Number.isFinite(n) && n > 0);
 }
 
+function isIntroductionRequest(text) {
+  const t = text.toLowerCase();
+  return (
+    (t.includes("là ai") && (t.includes("bạn") || t.includes("bot"))) ||
+    t.includes("giới thiệu") ||
+    t.includes("introduce") ||
+    t.includes("who are you") ||
+    t.includes("hướng dẫn")
+  );
+}
+
 function registerMessageHandler(bot) {
   bot.on("text", async (ctx) => {
     const text = ctx.message.text;
@@ -40,8 +57,7 @@ function registerMessageHandler(bot) {
     if (isGroup) {
       const botInfo = await bot.telegram.getMe();
       const isMentioned = text.includes(`@${botInfo.username}`);
-      const isReply =
-        ctx.message.reply_to_message?.from?.id === botInfo.id;
+      const isReply = ctx.message.reply_to_message?.from?.id === botInfo.id;
 
       if (!isMentioned && !isReply) return;
     }
@@ -62,10 +78,15 @@ function registerMessageHandler(bot) {
       const deleteCue = /\b(huỷ|hủy|xoá|xóa|remove|delete)\b/i.test(cleaned);
       if (allIds.length > 1 && doneCue) {
         const board = await boardService.getBoard(ctx);
-        const r = await cardService.moveCards(board.id, { card_ids: allIds, target_list: "Done" });
+        const r = await cardService.moveCards(board.id, {
+          card_ids: allIds,
+          target_list: "Done",
+        });
         const ok = (r.movedIds || []).map((id) => `#${id}`);
         const miss = (r.notFoundIds || []).map((id) => `#${id}`);
-        let msg = ok.length ? `✅ Đã hoàn thành: ${ok.join(", ")}` : "⚠️ Không hoàn thành được task nào.";
+        let msg = ok.length
+          ? `✅ Đã hoàn thành: ${ok.join(", ")}`
+          : "⚠️ Không hoàn thành được task nào.";
         if (miss.length) msg += `\n❌ Không tìm thấy: ${miss.join(", ")}`;
         return ctx.reply(msg);
       }
@@ -84,39 +105,62 @@ function registerMessageHandler(bot) {
 
       const idMatch = cleaned.match(/#\s*(\d+)/);
       const hasDeadlineWord = /\bdeadline\b/i.test(cleaned);
-      const looksLikeQuestion = /\b(là|bao\s*nhiêu|khi\s*nào|như\s*nào|hôm\s*nào|ra\s*sao)\b/i.test(
-        cleaned,
-      );
-      const looksLikeSet = /\b(set|đặt|đổi|dời|chuyển|update|cập\s*nhật)\b/i.test(
-        cleaned,
-      );
+      const looksLikeQuestion =
+        /\b(là|bao\s*nhiêu|khi\s*nào|như\s*nào|hôm\s*nào|ra\s*sao)\b/i.test(
+          cleaned,
+        );
+      const looksLikeSet =
+        /\b(set|đặt|đổi|dời|chuyển|update|cập\s*nhật)\b/i.test(cleaned);
       const hasDatePhrase =
         /\bmai\b/i.test(cleaned) ||
-        /\b(cn|chu\s*nhat|chủ\s*nhật|thu\s*\d|thứ\s*\d|t[2-7])\b/i.test(cleaned) ||
+        /\b(cn|chu\s*nhat|chủ\s*nhật|thu\s*\d|thứ\s*\d|t[2-7])\b/i.test(
+          cleaned,
+        ) ||
         /(\d{1,2})\/(\d{1,2})(?:\/(\d{4}))?/.test(cleaned);
 
       const history = getHistory(ctx);
       let analysis;
-      
-      // Let the user know we are thinking
-      await ctx.sendChatAction("typing");
 
-      if (hasDeadlineWord && idMatch && looksLikeQuestion) {
+      const botInfo = await bot.telegram.getMe();
+      if (isIntroductionRequest(cleaned)) {
+        const groupName = ctx.chat.title || "nhóm";
         analysis = {
-          intent: "search_card",
-          card_title: null,
-          card_id: parseInt(idMatch[1]),
-          target_list: null,
-          target_user: null,
-          deadline: null,
-          priority: null,
-          chat_response: `Để tui xem deadline của task #${idMatch[1]} nha.`,
+          intent: "chat",
+          chat_response:
+            `Tui là trợ lý ảo sẵn sàng đồng hành cùng team mình, vừa giúp quản lý công việc cực kỳ chuyên nghiệp, lại vừa có thể trò chuyện, giải đáp thắc mắc đủ mọi chủ đề trên đời! 🤖✨\n\n` +
+            `💡 *Mẹo:* Bạn có thể dùng lệnh / hoặc đơn giản là nhắn tin tự nhiên rồi @mention tui.\n\n` +
+            `*Ví dụ:*\n` +
+            `• *"@${botInfo.username} tạo task fix bug login, deadline thứ 6"*\n` +
+            `⚠️ *Lưu ý:* Mã *#ID* (Vd: task #1 xong) giúp tui xử lý công việc chính xác hơn trong nhóm.\n\n` +
+            `🛠 *Lưu ý:* Tui vẫn đang trong giai đoạn phát triển nên có thể có sai sót, mong cả nhà thông cảm và góp ý để tui hoàn thiện hơn nhé! 🙏\n\n` +
+            `Sẵn sàng phục vụ cả nhà! 🫡`,
         };
-      } else if (hasDeadlineWord && idMatch && looksLikeSet && hasDatePhrase) {
-        // Defer to AI for extracting the exact date phrase (deadline) from the text.
-        analysis = await analyzeMessage(text, userName, history);
       } else {
-        analysis = await analyzeMessage(text, userName, history);
+        // Let the user know we are thinking
+        await ctx.sendChatAction("typing");
+
+        if (hasDeadlineWord && idMatch && looksLikeQuestion) {
+          analysis = {
+            intent: "search_card",
+            card_title: null,
+            card_id: parseInt(idMatch[1]),
+            target_list: null,
+            target_user: null,
+            deadline: null,
+            priority: null,
+            chat_response: `Để tui xem deadline của task #${idMatch[1]} nha.`,
+          };
+        } else if (
+          hasDeadlineWord &&
+          idMatch &&
+          looksLikeSet &&
+          hasDatePhrase
+        ) {
+          // Defer to AI for extracting the exact date phrase (deadline) from the text.
+          analysis = await analyzeMessage(text, userName, history);
+        } else {
+          analysis = await analyzeMessage(text, userName, history);
+        }
       }
 
       // Normalize analysis fields that commonly break downstream logic.
@@ -125,7 +169,8 @@ function registerMessageHandler(bot) {
       // Prefer deterministic "#id" extraction over LLM card_id.
       // If LLM produced a card_id but the message doesn't explicitly mention an ID, ignore it.
       const explicitIdInText =
-        /#\s*\d+/.test(cleaned) || /\b(id|task|card)\s*[:#]?\s*\d+\b/i.test(cleaned);
+        /#\s*\d+/.test(cleaned) ||
+        /\b(id|task|card)\s*[:#]?\s*\d+\b/i.test(cleaned);
       if (idMatch) {
         analysis.card_id = parseInt(idMatch[1]);
       } else if (!explicitIdInText) {
@@ -145,7 +190,8 @@ function registerMessageHandler(bot) {
         /#\s*\d+/.test(cleaned) ||
         /\b(id|task|card)\s*[:#]?\s*\d+\b/i.test(cleaned);
       const looksLikeDowNumber =
-        /\b(thứ|thu|t)\s*([2-7])\b/i.test(cleaned) && !/#\s*[2-7]\b/.test(cleaned);
+        /\b(thứ|thu|t)\s*([2-7])\b/i.test(cleaned) &&
+        !/#\s*[2-7]\b/.test(cleaned);
 
       // Extra guard: "thứ 6/thu 6/t6" is usually a date phrase, not a card id.
       if (
@@ -174,7 +220,8 @@ function registerMessageHandler(bot) {
       // If user refers to previous task and we still don't have an id, use last context.
       if (
         !analysis.card_id &&
-        (analysis.intent === "set_deadline" || analysis.intent === "search_card") &&
+        (analysis.intent === "set_deadline" ||
+          analysis.intent === "search_card") &&
         (refersToPrevious || (hasDeadlineWord && hasDatePhrase))
       ) {
         const last = getLastCardId(ctx);
@@ -238,7 +285,9 @@ function registerMessageHandler(bot) {
 
 async function handleCreateCard(ctx, analysis) {
   if (!analysis.card_title) {
-    return ctx.reply(analysis.chat_response || "Tạo task gì vậy? Nói rõ hơn nha!");
+    return ctx.reply(
+      analysis.chat_response || "Tạo task gì vậy? Nói rõ hơn nha!",
+    );
   }
 
   try {
@@ -268,14 +317,14 @@ async function handleCreateCard(ctx, analysis) {
       msg += `\n⏰ ${formatDate(card.dueDate)}`;
     }
 
-    ctx.reply(msg, { 
+    ctx.reply(msg, {
       parse_mode: "Markdown",
       ...Markup.inlineKeyboard([
         [
           Markup.button.callback("✅ Hoàn thành", `done:${card.id}`),
-          Markup.button.callback("🔍 Chi tiết", `view:${card.id}`)
-        ]
-      ])
+          Markup.button.callback("🔍 Chi tiết", `view:${card.id}`),
+        ],
+      ]),
     });
   } catch (err) {
     log.error("Create card from chat failed", { error: err.message });
@@ -323,24 +372,28 @@ async function handleAskMyTasks(ctx, analysis) {
     const filter = analysis.target_list === "Done" ? "done" : "active";
     const cards = await cardService.getMyCards(ctx.state.user.id, filter);
     const isAskingDone = filter === "done";
-    
+
     if (cards.length === 0) {
       return ctx.reply(
-        isAskingDone 
-          ? "Bạn chưa có task nào hoàn thành cả. Cố gắng lên nhé! 💪" 
-          : "🎉 Hiện tại bạn không còn task nào dang dở cả! Nghỉ ngơi thôi."
+        isAskingDone
+          ? "Bạn chưa có task nào hoàn thành cả. Cố gắng lên nhé! 💪"
+          : "🎉 Hiện tại bạn không còn task nào dang dở cả! Nghỉ ngơi thôi.",
       );
     }
 
     const display = formatMyCards(cards);
-    const intro = analysis.chat_response || (isAskingDone ? "Đây là các task bạn đã hoàn thành:" : `Task của ${ctx.from.first_name}:`);
+    const intro =
+      analysis.chat_response ||
+      (isAskingDone
+        ? "Đây là các task bạn đã hoàn thành:"
+        : `Task của ${ctx.from.first_name}:`);
     const buttons = cards.slice(0, 10).map((c) => {
       return [Markup.button.callback(`✅ #${c.id}`, `done:${c.id}`)];
     });
 
-    ctx.reply(`${intro}\n${display}`, { 
+    ctx.reply(`${intro}\n${display}`, {
       parse_mode: "Markdown",
-      ...Markup.inlineKeyboard(buttons)
+      ...Markup.inlineKeyboard(buttons),
     });
   } catch (err) {
     log.error("Ask my tasks failed", { error: err.message });
@@ -352,7 +405,7 @@ async function handleAskTeamTasks(ctx, analysis) {
   try {
     const board = await boardService.getBoard(ctx);
     const lists = await boardService.getLists(board.id);
-    
+
     // Check if total cards in all lists is 0
     const totalCards = lists.reduce((sum, list) => sum + list.cards.length, 0);
     if (totalCards === 0) {
@@ -377,7 +430,10 @@ async function handleAssignCard(ctx, analysis) {
     if (!analysis.target_user) {
       const cardRepo = require("../../db/card.repo");
       const id = analysis.card_id;
-      if (!id) return ctx.reply("Bạn muốn giao task nào? Gõ `#id` (vd: `#2`) nha.", { parse_mode: "Markdown" });
+      if (!id)
+        return ctx.reply("Bạn muốn giao task nào? Gõ `#id` (vd: `#2`) nha.", {
+          parse_mode: "Markdown",
+        });
       const card = await cardRepo.assign(id, ctx.state.user.id);
       let msg = analysis.chat_response || "Đã giao!";
       msg += `\n👤 *#${card.displayId || card.id} ${card.title}* → ${ctx.from.first_name}`;
@@ -393,7 +449,9 @@ async function handleAssignCard(ctx, analysis) {
 
     if (result.notFound) return ctx.reply("Không tìm thấy card 😅");
     if (result.userNotFound)
-      return ctx.reply(`Không tìm thấy user "${analysis.target_user}". User đó đã /start bot chưa?`);
+      return ctx.reply(
+        `Không tìm thấy user "${analysis.target_user}". User đó đã /start bot chưa?`,
+      );
 
     let msg = analysis.chat_response || "Đã giao!";
     msg += `\n👤 *#${result.card.displayId || result.card.id} ${result.card.title}* → ${result.card.assignee.firstName}`;
@@ -415,7 +473,8 @@ async function handleSetDeadline(ctx, analysis) {
     });
 
     if (result.notFound) return ctx.reply("Không tìm thấy card 😅");
-    if (result.invalidDate) return ctx.reply("Ngày không hợp lệ, dùng DD/MM nha!");
+    if (result.invalidDate)
+      return ctx.reply("Ngày không hợp lệ, dùng DD/MM nha!");
 
     const { formatDate } = require("../../utils/formatter");
     let msg = analysis.chat_response || "Đã set deadline!";
@@ -443,7 +502,10 @@ async function handleSearchCard(ctx, analysis) {
 
     // Prioritize ID lookup if provided
     if (analysis.card_id) {
-      const card = await cardService.getCardByDisplayId(board.id, analysis.card_id);
+      const card = await cardService.getCardByDisplayId(
+        board.id,
+        analysis.card_id,
+      );
       if (card) {
         cards = [card];
       }
@@ -451,36 +513,35 @@ async function handleSearchCard(ctx, analysis) {
 
     // Fallback to fuzzy search if no ID or no card found by ID
     if (cards.length === 0) {
-      cards = await cardService.searchCards(
-        board.id,
-        analysis.card_title,
-      );
+      cards = await cardService.searchCards(board.id, analysis.card_title);
     }
 
     if (cards.length === 0) {
       return ctx.reply(
-        "🔍 Tui đã lục tung cả board nhưng không thấy task nào như bạn mô tả cả."
+        "🔍 Tui đã lục tung cả board nhưng không thấy task nào như bạn mô tả cả.",
       );
     }
 
-    // If it's a specific card query (like asking "what is the deadline"), 
+    // If it's a specific card query (like asking "what is the deadline"),
     // and we found exactly one card, give a more detailed response.
     if (cards.length === 1 && analysis.card_id) {
       const card = cards[0];
       const { formatDate } = require("../../utils/formatter");
-      let msg = analysis.chat_response || `Đây là thông tin task *#${card.displayId || card.id}*:`;
+      let msg =
+        analysis.chat_response ||
+        `Đây là thông tin task *#${card.displayId || card.id}*:`;
       msg += `\n\n📌 *${card.title}*`;
       msg += `\n📋 Trạng thái: ${card.list.name}`;
       if (card.assignee) msg += `\n👤 Người làm: ${card.assignee.firstName}`;
       if (card.dueDate) msg += `\n⏰ Deadline: ${formatDate(card.dueDate)}`;
       else msg += "\n⏰ Deadline: Chưa có";
-      
+
       setLastCardId(ctx, card.displayId || card.id);
-      return ctx.reply(msg, { 
+      return ctx.reply(msg, {
         parse_mode: "Markdown",
         ...Markup.inlineKeyboard([
-          [Markup.button.callback("🔍 Chi tiết", `view:${card.id}`)]
-        ])
+          [Markup.button.callback("🔍 Chi tiết", `view:${card.id}`)],
+        ]),
       });
     }
 
@@ -489,7 +550,8 @@ async function handleSearchCard(ctx, analysis) {
       msg += `\n• *#${c.displayId || c.id}* ${c.title} (${c.list?.name || "?"})`;
       if (c.assignee) msg += ` → @${c.assignee.firstName}`;
     });
-    if (cards.length === 1) setLastCardId(ctx, cards[0].displayId || cards[0].id);
+    if (cards.length === 1)
+      setLastCardId(ctx, cards[0].displayId || cards[0].id);
     ctx.reply(msg, { parse_mode: "Markdown" });
   } catch (err) {
     log.error("Search from chat failed", { error: err.message });
@@ -502,7 +564,10 @@ async function handleDeleteCard(ctx, analysis) {
     const board = await boardService.getBoard(ctx);
 
     if (analysis.card_id) {
-      const card = await cardService.getCardByDisplayId(board.id, analysis.card_id);
+      const card = await cardService.getCardByDisplayId(
+        board.id,
+        analysis.card_id,
+      );
       if (!card) return ctx.reply("Không tìm thấy card 😅");
       const token = setPendingDelete(ctx, [card.id]);
       const msg = `🗑️ Bạn chắc muốn xoá task *#${card.displayId || card.id}* không?`;
@@ -518,11 +583,16 @@ async function handleDeleteCard(ctx, analysis) {
     }
 
     if (analysis.card_title) {
-      const matches = await cardService.searchCards(board.id, analysis.card_title);
+      const matches = await cardService.searchCards(
+        board.id,
+        analysis.card_title,
+      );
       if (matches.length === 0) return ctx.reply("Không tìm thấy card 😅");
       if (matches.length > 1) {
         let msg = "Tìm thấy nhiều task khớp, chọn 1 nhé:\n\n";
-        matches.forEach((m) => (msg += `• *#${m.displayId || m.id}* ${m.title}\n`));
+        matches.forEach(
+          (m) => (msg += `• *#${m.displayId || m.id}* ${m.title}\n`),
+        );
         msg += `\nGõ: "xoá #id"`;
         return ctx.reply(msg, { parse_mode: "Markdown" });
       }
@@ -539,9 +609,12 @@ async function handleDeleteCard(ctx, analysis) {
       });
     }
 
-    return ctx.reply("Bạn muốn xoá task nào? Gõ `#id` (vd: `#2`) hoặc vài từ khoá trong tên task nhé.", {
-      parse_mode: "Markdown",
-    });
+    return ctx.reply(
+      "Bạn muốn xoá task nào? Gõ `#id` (vd: `#2`) hoặc vài từ khoá trong tên task nhé.",
+      {
+        parse_mode: "Markdown",
+      },
+    );
   } catch (err) {
     log.error("Delete from chat failed", { error: err.message });
     ctx.reply("Lỗi khi xoá task 😅");
