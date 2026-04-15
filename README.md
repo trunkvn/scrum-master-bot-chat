@@ -15,7 +15,7 @@
 
 - **Runtime**: Node.js
 - **Bot Framework**: Telegraf (Telegram Bot API)
-- **AI Engine**: Google Generative AI (Gemini 1.5 Pro/Flash)
+- **AI Engine**: Google Generative AI 
 - **Database**: MySQL / SQLite (via Prisma ORM)
 - **Scheduling**: Node-cron
 
