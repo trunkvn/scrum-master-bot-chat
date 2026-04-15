@@ -97,6 +97,10 @@ function registerMessageHandler(bot) {
 
       const history = getHistory(ctx);
       let analysis;
+      
+      // Let the user know we are thinking
+      await ctx.sendChatAction("typing");
+
       if (hasDeadlineWord && idMatch && looksLikeQuestion) {
         analysis = {
           intent: "search_card",

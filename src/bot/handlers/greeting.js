@@ -39,26 +39,13 @@ function registerGreetingHandler(bot) {
     // Send introduction
     await ctx.reply(
       `Chào cả nhà *${groupName}*! 👋\n\n` +
-        `Tui là bot quản lý công việc của team ngay trên Telegram.\n\n` +
-        `⌨️ *Lệnh nhanh:*\n` +
-        `/add \`tên task\` — Tạo task\n` +
-        `/my — Xem task của mình\n` +
-        `/done \`#id\` — Đánh dấu xong\n` +
-        `/move \`#id\` \`list\` — Chuyển trạng thái\n` +
-        `/assign \`#id\` \`@user\` — Giao task\n` +
-        `/deadline \`#id\` \`ngày\` — Set deadline\n` +
-        `/board — Xem toàn bộ board\n` +
-        `/stats — Thống kê nhanh\n` +
-        `/report — Báo cáo ngày\n` +
-        `/help — Xem đầy đủ hướng dẫn\n\n` +
-        `💡 *Mẹo:* Cứ nhắn tự nhiên rồi @mention tui là được, không cần nhớ lệnh!\n\n` +
-        `Ví dụ: *"@${botInfo.username} tạo task fix bug login cho tôi, deadline thứ 6"*\n\n` +
-        `⚠️ *Lưu ý để dùng tốt nhất:*\n` +
-        `1️⃣ Tui sẽ tự động nhận diện mọi người ngay khi mọi người chat trong group này.\n` +
-        `2️⃣ Dùng kèm mã *#ID* (Vd: #123 xong) để tui xử lý chính xác nhất.\n` +
-        `3️⃣ Tui sẽ gửi mọi báo cáo và nhắc nhở trực tiếp vào đây để cả team cùng theo dõi.\n\n` +
+        `Tui là trợ lý ảo sẵn sàng đồng hành cùng team mình, vừa giúp quản lý công việc cực kỳ chuyên nghiệp, lại vừa có thể trò chuyện, giải đáp thắc mắc đủ mọi chủ đề trên đời! 🤖✨\n\n` +
+        `💡 *Mẹo:* Bạn có thể dùng lệnh / hoặc đơn giản là nhắn tin tự nhiên rồi @mention tui.\n\n` +
+        `*Ví dụ:*\n` +
+        `• *"@${botInfo.username} tạo task fix bug login, deadline thứ 6"*\n` +
+        `⚠️ *Lưu ý:* Mã *#ID* (Vd: task #1 xong) giúp tui xử lý công việc chính xác hơn trong nhóm.\n\n` +
         `🛠 *Lưu ý:* Tui vẫn đang trong giai đoạn phát triển nên có thể có sai sót, mong cả nhà thông cảm và góp ý để tui hoàn thiện hơn nhé! 🙏\n\n` +
-        `Sẵn sàng phục vụ! 🫡`,
+        `Sẵn sàng phục vụ cả nhà! 🫡`,
       {
         parse_mode: "Markdown",
         message_thread_id: topicId,

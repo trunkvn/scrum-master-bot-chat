@@ -129,21 +129,38 @@ function setupScheduler(bot) {
         if (!board.chatId) continue;
         try {
           const overdue = await cardRepo.findOverdue(board.id);
-          if (overdue.length > 0) {
-            let msg = "🔴 *CẢNH BÁO DEADLINE:*\n\n";
-            overdue.forEach((c) => {
-              const who = c.assignee ? `@${c.assignee.firstName}` : "chưa assign";
-              msg += `• *#${c.id} ${c.title}* — ${who}\n`;
-            });
-            msg += "\nHãy cập nhật tiến độ nhé! 🙏";
+          const upcoming = await cardRepo.findUpcoming(board.id, 48);
+
+          if (overdue.length > 0 || upcoming.length > 0) {
+            let msg = "";
+            const buttons = [];
+
+            if (overdue.length > 0) {
+              msg += "🔴 *CẢNH BÁO QUÁ HẠN:*\n";
+              overdue.forEach((c) => {
+                const who = c.assignee ? `@${c.assignee.firstName}` : "chưa assign";
+                msg += `• *#${c.displayId || c.id} ${c.title}* — ${who}\n`;
+                if (buttons.length < 10) {
+                  buttons.push([Markup.button.callback(`✅ Xong #${c.displayId || c.id}`, `done:${c.id}`)]);
+                }
+              });
+              msg += "\n";
+            }
+
+            if (upcoming.length > 0) {
+              msg += "⏳ *SẮP ĐẾN HẠN (48h tới):*\n";
+              upcoming.forEach((c) => {
+                const who = c.assignee ? `@${c.assignee.firstName}` : "chưa assign";
+                msg += `• *#${c.displayId || c.id} ${c.title}* — ${who}\n`;
+              });
+            }
+
+            msg += "\nCố gắng hoàn thành đúng hạn nhé cả nhà! 💪";
+            
             bot.telegram.sendMessage(board.chatId, msg, {
               parse_mode: "Markdown",
               message_thread_id: board.topicId,
-              ...Markup.inlineKeyboard(
-                overdue.slice(0, 10).map((c) => [
-                  Markup.button.callback(`✅ Xong #${c.id}`, `done:${c.id}`)
-                ])
-              )
+              ...(buttons.length > 0 ? Markup.inlineKeyboard(buttons) : {})
             });
           }
         } catch (err) {

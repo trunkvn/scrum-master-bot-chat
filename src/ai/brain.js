@@ -83,19 +83,22 @@ JSON:
 {"intent":"chat","card_title":null,"card_id":null,"target_list":null,"target_user":null,"deadline":null,"priority":null,"chat_response":"Tui nghĩ AI sẽ là một cộng sự đắc lực giúp con người làm việc hiệu quả hơn bội phần. Nó không chỉ giúp tự động hóa những việc lặp đi lặp lại mà còn mở ra những khả năng sáng tạo mới. Tuy nhiên, yếu tố con người, sự thấu cảm và trách nhiệm vẫn là cốt lõi không thể thay thế được. Tui rất vui khi được là một phần nhỏ trong hành trình công nghệ của team mình đó!"}
 `;
 
-
 /**
  * Phân tích tin nhắn và trả về intent có cấu trúc + câu trả lời tự nhiên
  */
 async function analyzeMessage(text, userName, history = []) {
   try {
-    const model = genAI.getGenerativeModel({ 
+    const model = genAI.getGenerativeModel({
       model: config.ai.model || "gemma-3-4b-it",
-      generationConfig: { temperature: 0.2 }
+      generationConfig: { temperature: 0.2 },
     });
 
     const now = new Date();
-    const todayVi = now.toLocaleDateString("vi-VN", { year: "numeric", month: "2-digit", day: "2-digit" });
+    const todayVi = now.toLocaleDateString("vi-VN", {
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    });
 
     let historyText = "";
     if (history && history.length > 0) {
@@ -112,7 +115,7 @@ async function analyzeMessage(text, userName, history = []) {
 
     // Clean up response
     jsonText = jsonText.replace(/```json\s*|```\s*/g, "").trim();
-    
+
     // Extract everything between first { and last }
     const match = jsonText.match(/\{[\s\S]*\}/);
     if (match) {
@@ -125,21 +128,25 @@ async function analyzeMessage(text, userName, history = []) {
       let cleanedJson = jsonText
         .replace(/,\s*([}\]])/g, "$1") // trailing commas
         .replace(/\r?\n/g, " "); // literal newlines (should be \n in JSON strings)
-        
+
       parsed = JSON.parse(cleanedJson);
     } catch (e) {
-      log.warn("Failed to parse JSON directly, attempting manual extraction", { 
-        error: e.message, 
-        raw: jsonText 
+      log.warn("Failed to parse JSON directly, attempting manual extraction", {
+        error: e.message,
+        raw: jsonText,
       });
-      
+
       // Fallback: try to extract chat_response even if JSON is broken
-      const chatMatch = jsonText.match(/"chat_response"\s*:\s*"([\s\S]*?)"\s*[,}]/);
+      const chatMatch = jsonText.match(
+        /"chat_response"\s*:\s*"([\s\S]*?)"\s*[,}]/,
+      );
       const intentMatch = jsonText.match(/"intent"\s*:\s*"([\s\S]*?)"/);
-      
+
       parsed = {
         intent: intentMatch ? intentMatch[1] : "chat",
-        chat_response: chatMatch ? chatMatch[1] : "Tui đây, ông cần gì thế? (AI vừa bị lag nhẹ 😅)",
+        chat_response: chatMatch
+          ? chatMatch[1]
+          : "Tui đây, ông cần gì thế? (AI vừa bị lag nhẹ 😅)",
         card_title: null,
         card_id: null,
       };
@@ -148,9 +155,15 @@ async function analyzeMessage(text, userName, history = []) {
     try {
       const msg = String(text || "");
       const hasDeadline = /\bdeadline\b/i.test(msg);
-      const hasQuestionCue = /(\?|là|bao\s*nhiêu|khi\s*nào|hôm\s*nào|như\s*nào|ra\s*sao)/i.test(msg);
+      const hasQuestionCue =
+        /(\?|là|bao\s*nhiêu|khi\s*nào|hôm\s*nào|như\s*nào|ra\s*sao)/i.test(msg);
       const hasSetCue = /(đặt|set|đổi|dời|chuyển|update|cập\s*nhật)/i.test(msg);
-      if (hasDeadline && hasQuestionCue && !hasSetCue && parsed.intent === "set_deadline") {
+      if (
+        hasDeadline &&
+        hasQuestionCue &&
+        !hasSetCue &&
+        parsed.intent === "set_deadline"
+      ) {
         parsed.intent = "search_card";
         parsed.deadline = null;
       }
@@ -164,7 +177,6 @@ async function analyzeMessage(text, userName, history = []) {
         parsed.target_user = selfWord.test(tu) ? null : tu;
       }
     } catch (_) {}
-
 
     log.debug("Gemma analysis success", { input: text, result: parsed });
     return parsed;
@@ -182,8 +194,8 @@ async function analyzeMessage(text, userName, history = []) {
  */
 async function generateResponse(context) {
   try {
-    const model = genAI.getGenerativeModel({ 
-      model: config.ai.model || "gemma-3-4b-it" 
+    const model = genAI.getGenerativeModel({
+      model: config.ai.model || "gemma-3-4b-it",
     });
     const prompt = `Bạn là trợ lý. Hãy trả lời thân thiện: ${context}`;
     const result = await model.generateContent(prompt);

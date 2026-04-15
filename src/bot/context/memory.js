@@ -83,9 +83,9 @@ function addMessageToHistory(ctx, role, content, name) {
   // Clean up old messages (older than TTL)
   history = history.filter(m => _now() - m.timestamp < TTL_MS);
   
-  // Limit to last 15 messages
-  if (history.length > 15) {
-    history = history.slice(-15);
+  // Limit to last 7 messages for faster processing
+  if (history.length > 7) {
+    history = history.slice(-7);
   }
   
   historyStore.set(key, history);

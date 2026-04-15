@@ -164,6 +164,21 @@ const cardRepo = {
     });
   },
 
+  async findUpcoming(boardId, hours = 48) {
+    const future = new Date();
+    future.setHours(future.getHours() + hours);
+    return prisma.card.findMany({
+      where: {
+        list: { boardId, name: { not: "Done" } },
+        dueDate: {
+          gt: new Date(),
+          lt: future,
+        },
+      },
+      include: { list: true, assignee: true },
+    });
+  },
+
   /**
    * Search cards by title (fuzzy)
    */
