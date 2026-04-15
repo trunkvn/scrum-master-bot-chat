@@ -1,4 +1,5 @@
 const { analyzeMessage } = require("../../ai/brain");
+const prisma = require("../../db/prisma");
 const boardService = require("../../services/board.service");
 const cardService = require("../../services/card.service");
 const reportService = require("../../services/report.service");
@@ -300,18 +301,31 @@ async function handleCreateCard(ctx, analysis) {
       target_list: analysis.target_list,
     });
 
-    // Remember last created card so follow-ups like "task đó" work.
+    // Check if target user was requested but not assigned
+    let userWarning = "";
+    if (analysis.target_user && !card.assignee) {
+      userWarning = `\n⚠️ *Lưu ý:* Không tìm thấy user "@${analysis.target_user}". Nhắc họ chat với tui hoặc gõ /start để tui nhận diện nha!`;
+    }
+
+    // Remember last created card
     setLastCardId(ctx, card.displayId || card.id);
 
     // Assign to sender if no target user specified
     if (!analysis.target_user && card.assigneeId === null) {
       const cardRepo = require("../../db/card.repo");
       await cardRepo.assign(card.id, ctx.state.user.id);
+      // Re-fetch card with assignee
+      const updatedCard = await prisma.card.findUnique({
+        where: { id: card.id },
+        include: { assignee: true, list: true },
+      });
+      Object.assign(card, updatedCard);
     }
 
     let msg = analysis.chat_response || "Đã tạo!";
     msg += `\n📌 *#${card.displayId || card.id} ${card.title}* → ${card.list.name}`;
     if (card.assignee) msg += `\n👤 ${card.assignee.firstName}`;
+    msg += userWarning;
     if (card.dueDate) {
       const { formatDate } = require("../../utils/formatter");
       msg += `\n⏰ ${formatDate(card.dueDate)}`;
