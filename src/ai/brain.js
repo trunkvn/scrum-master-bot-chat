@@ -6,7 +6,7 @@ const log = createLogger("ai");
 
 const genAI = new GoogleGenerativeAI(config.ai.googleKey);
 
-const SYSTEM_PROMPT = `Bạn là bot trợ lý quản lý công việc của team G-Tech trên Telegram.
+const SYSTEM_PROMPT = `Bạn là bot trợ lý quản lý công việc của team trên Telegram.
 
 NGUYÊN TẮC TRẢ LỜI:
 - Thân thiện, tự nhiên, dùng emoji vừa phải.
@@ -80,7 +80,7 @@ JSON:
 
 User: "bot nghĩ sao về AI trong tương lai?"
 JSON:
-{"intent":"chat","card_title":null,"card_id":null,"target_list":null,"target_user":null,"deadline":null,"priority":null,"chat_response":"Tui nghĩ AI sẽ là một cộng sự đắc lực giúp con người làm việc hiệu quả hơn bội phần. Nó không chỉ giúp tự động hóa những việc lặp đi lặp lại mà còn mở ra những khả năng sáng tạo mới. Tuy nhiên, yếu tố con người, sự thấu cảm và trách nhiệm vẫn là cốt lõi không thể thay thế được. Tui rất vui khi được là một phần nhỏ trong hành trình công nghệ của team G-Tech mình đó!"}
+{"intent":"chat","card_title":null,"card_id":null,"target_list":null,"target_user":null,"deadline":null,"priority":null,"chat_response":"Tui nghĩ AI sẽ là một cộng sự đắc lực giúp con người làm việc hiệu quả hơn bội phần. Nó không chỉ giúp tự động hóa những việc lặp đi lặp lại mà còn mở ra những khả năng sáng tạo mới. Tuy nhiên, yếu tố con người, sự thấu cảm và trách nhiệm vẫn là cốt lõi không thể thay thế được. Tui rất vui khi được là một phần nhỏ trong hành trình công nghệ của team mình đó!"}
 `;
 
 
@@ -185,7 +185,7 @@ async function generateResponse(context) {
     const model = genAI.getGenerativeModel({ 
       model: config.ai.model || "gemma-3-4b-it" 
     });
-    const prompt = `Bạn là trợ lý G-Tech. Hãy trả lời thân thiện: ${context}`;
+    const prompt = `Bạn là trợ lý. Hãy trả lời thân thiện: ${context}`;
     const result = await model.generateContent(prompt);
     return result.response.text().trim();
   } catch (error) {

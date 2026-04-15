@@ -74,7 +74,7 @@ function setupScheduler(bot) {
         if (!board.chatId) continue;
         try {
           const customMsg = await generateResponse(
-            "Đã đến 12h trưa, hãy viết một lời nhắc nhở nghỉ ngơi và đi ăn trưa hài hước, thân thiện cho team G-Tech. Kèm emoji sinh động.",
+            "Đã đến 12h trưa, hãy viết một lời nhắc nhở nghỉ ngơi và đi ăn trưa hài hước, thân thiện cho team. Kèm emoji sinh động.",
           );
           
           bot.telegram.sendMessage(
