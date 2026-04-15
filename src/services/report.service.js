@@ -87,13 +87,16 @@ const reportService = {
     cards.forEach((card) => {
       const name = card.assignee ? card.assignee.firstName : "Chưa bộ phận";
       if (!groups[name]) {
-        groups[name] = { done: [], inProgress: [], other: [] };
+        groups[name] = { done: [], inProgress: [], todo: [], other: [] };
       }
 
-      if (card.list.name === "Done") {
+      const listName = card.list.name;
+      if (listName === "Done") {
         groups[name].done.push(card);
-      } else if (card.list.name === "In Progress") {
+      } else if (listName === "In Progress") {
         groups[name].inProgress.push(card);
+      } else if (listName === "To Do") {
+        groups[name].todo.push(card);
       } else {
         groups[name].other.push(card);
       }
@@ -102,19 +105,23 @@ const reportService = {
     let output = "";
     for (const [name, tasks] of Object.entries(groups)) {
       output += `👤 *${name}:*\n`;
-      
+
       if (tasks.done.length > 0) {
-        output += `  ✅ *Đã xong:* ${tasks.done.map(t => t.title).join(", ")}\n`;
-      }
-      
-      if (tasks.inProgress.length > 0) {
-        output += `  🚧 *Đang làm:* ${tasks.inProgress.map(t => t.title).join(", ")}\n`;
+        output += `  ✅ *Đã xong:* ${tasks.done.map((t) => t.title).join(", ")}\n`;
       }
 
-      if (tasks.other.length > 0 && tasks.done.length === 0 && tasks.inProgress.length === 0) {
-        output += `  📝 *Khác:* ${tasks.other.map(t => t.title).join(", ")}\n`;
+      if (tasks.inProgress.length > 0) {
+        output += `  🚧 *Đang làm:* ${tasks.inProgress.map((t) => t.title).join(", ")}\n`;
       }
-      
+
+      if (tasks.todo.length > 0) {
+        output += `  📝 *Cần làm:* ${tasks.todo.map((t) => t.title).join(", ")}\n`;
+      }
+
+      if (tasks.other.length > 0) {
+        output += `  📎 *Khác:* ${tasks.other.map((t) => t.title).join(", ")}\n`;
+      }
+
       output += "\n";
     }
 
