@@ -5,15 +5,16 @@ const reportService = require("../services/report.service");
 const cardRepo = require("../db/card.repo");
 const { createLogger } = require("../utils/logger");
 const { Markup } = require("telegraf");
+const { escapeMarkdown } = require("../utils/formatter");
 
 const log = createLogger("cron");
 
 function setupScheduler(bot) {
   const tz = config.app.timezone;
 
-  // Daily Standup — 8:30 AM, Mon-Fri
+  // Daily Standup — 8:45 AM, Mon-Fri
   cron.schedule(
-    "30 8 * * 1-5",
+    "45 8 * * 1-5",
     async () => {
       log.info("Running daily standup reminder");
       const boards = await boardRepo.findAll();
@@ -118,7 +119,7 @@ function setupScheduler(bot) {
     { timezone: tz },
   );
 
-  // Deadline warning — 8:00 AM daily
+  // Deadline warning — 9:00 AM daily
   cron.schedule(
     "0 9 * * *",
     async () => {
@@ -138,8 +139,8 @@ function setupScheduler(bot) {
             if (overdue.length > 0) {
               msg += "🔴 *CẢNH BÁO QUÁ HẠN:*\n";
               overdue.forEach((c) => {
-                const who = c.assignee ? `@${c.assignee.firstName}` : "chưa assign";
-                msg += `• *#${c.displayId || c.id} ${c.title}* — ${who}\n`;
+                const who = c.assignee ? `@${escapeMarkdown(c.assignee.firstName)}` : "chưa assign";
+                msg += `• *#${c.displayId || c.id} ${escapeMarkdown(c.title)}* — ${who}\n`;
                 if (buttons.length < 10) {
                   buttons.push([Markup.button.callback(`✅ Xong #${c.displayId || c.id}`, `done:${c.id}`)]);
                 }
@@ -150,8 +151,8 @@ function setupScheduler(bot) {
             if (upcoming.length > 0) {
               msg += "⏳ *SẮP ĐẾN HẠN (48h tới):*\n";
               upcoming.forEach((c) => {
-                const who = c.assignee ? `@${c.assignee.firstName}` : "chưa assign";
-                msg += `• *#${c.displayId || c.id} ${c.title}* — ${who}\n`;
+                const who = c.assignee ? `@${escapeMarkdown(c.assignee.firstName)}` : "chưa assign";
+                msg += `• *#${c.displayId || c.id} ${escapeMarkdown(c.title)}* — ${who}\n`;
               });
             }
 

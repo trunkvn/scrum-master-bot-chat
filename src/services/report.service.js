@@ -1,6 +1,6 @@
 const cardRepo = require("../db/card.repo");
 const boardRepo = require("../db/board.repo");
-const { formatMyCards, formatStats, formatCardsByList } = require("../utils/formatter");
+const { formatMyCards, formatStats, formatCardsByList, escapeMarkdown } = require("../utils/formatter");
 
 const reportService = {
   /**
@@ -104,22 +104,22 @@ const reportService = {
 
     let output = "";
     for (const [name, tasks] of Object.entries(groups)) {
-      output += `👤 *${name}:*\n`;
+      output += `👤 *${escapeMarkdown(name)}:*\n`;
 
       if (tasks.done.length > 0) {
-        output += `  ✅ *Đã xong:* ${tasks.done.map((t) => t.title).join(", ")}\n`;
+        output += `  ✅ *Đã xong:* ${tasks.done.map((t) => escapeMarkdown(t.title)).join(", ")}\n`;
       }
 
       if (tasks.inProgress.length > 0) {
-        output += `  🚧 *Đang làm:* ${tasks.inProgress.map((t) => t.title).join(", ")}\n`;
+        output += `  🚧 *Đang làm:* ${tasks.inProgress.map((t) => escapeMarkdown(t.title)).join(", ")}\n`;
       }
 
       if (tasks.todo.length > 0) {
-        output += `  📝 *Cần làm:* ${tasks.todo.map((t) => t.title).join(", ")}\n`;
+        output += `  📝 *Cần làm:* ${tasks.todo.map((t) => escapeMarkdown(t.title)).join(", ")}\n`;
       }
 
       if (tasks.other.length > 0) {
-        output += `  📎 *Khác:* ${tasks.other.map((t) => t.title).join(", ")}\n`;
+        output += `  📎 *Khác:* ${tasks.other.map((t) => escapeMarkdown(t.title)).join(", ")}\n`;
       }
 
       output += "\n";

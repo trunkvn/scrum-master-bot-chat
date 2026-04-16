@@ -14,17 +14,26 @@ const STATUS_ICONS = {
 };
 
 /**
+ * Escapes characters that have special meaning in Telegram Markdown
+ */
+function escapeMarkdown(text) {
+  if (!text) return "";
+  // Escape underscores, asterisks, and backticks as they are common in tasks
+  return text.replace(/(_|\*|`|\[)/g, "\\$1");
+}
+
+/**
  * Format a single card for display
  */
 function formatCard(card, opts = {}) {
   const priority = PRIORITY_ICONS[card.priority] || "🟡";
   const listName = card.list?.name || "";
   const status = STATUS_ICONS[listName] || "📌";
-  const assignee = card.assignee ? ` → @${card.assignee.firstName}` : "";
+  const assignee = card.assignee ? ` → @${escapeMarkdown(card.assignee.firstName)}` : "";
   const due = card.dueDate ? ` ⏰ ${formatDate(card.dueDate)}` : "";
   const id = opts.showId !== false ? `#${card.displayId || card.id}` : "";
 
-  let line = `${status} ${id} ${card.title}${assignee}${due}`;
+  let line = `${status} ${id} ${escapeMarkdown(card.title)}${assignee}${due}`;
   if (opts.showPriority) line = `${priority} ${line}`;
   return line;
 }
@@ -60,10 +69,10 @@ function formatMyCards(cards) {
 
   for (const [listName, items] of Object.entries(grouped)) {
     const icon = STATUS_ICONS[listName] || "📌";
-    out += `\n${icon} *${listName}:*\n`;
+    out += `\n${icon} *${escapeMarkdown(listName)}:*\n`;
     items.forEach((c, i) => {
       const due = c.dueDate ? ` ⏰ ${formatDate(c.dueDate)}` : "";
-      out += `  ${i + 1}. #${c.displayId || c.id} ${c.title}${due}\n`;
+      out += `  ${i + 1}. #${c.displayId || c.id} ${escapeMarkdown(c.title)}${due}\n`;
     });
   }
   return out;
@@ -150,6 +159,7 @@ module.exports = {
   formatStats,
   formatDate,
   parseViDate,
+  escapeMarkdown,
   PRIORITY_ICONS,
   STATUS_ICONS,
 };
