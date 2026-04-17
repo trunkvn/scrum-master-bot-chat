@@ -299,6 +299,7 @@ async function handleCreateCard(ctx, analysis) {
       deadline: analysis.deadline,
       priority: analysis.priority,
       target_list: analysis.target_list,
+      assignee_id: ctx.state.user.id,
     });
 
     // Check if target user was requested but not assigned
@@ -309,18 +310,6 @@ async function handleCreateCard(ctx, analysis) {
 
     // Remember last created card
     setLastCardId(ctx, card.displayId || card.id);
-
-    // Assign to sender if no target user specified
-    if (!analysis.target_user && card.assigneeId === null) {
-      const cardRepo = require("../../db/card.repo");
-      await cardRepo.assign(card.id, ctx.state.user.id);
-      // Re-fetch card with assignee
-      const updatedCard = await prisma.card.findUnique({
-        where: { id: card.id },
-        include: { assignee: true, list: true },
-      });
-      Object.assign(card, updatedCard);
-    }
 
     let msg = analysis.chat_response || "Đã tạo!";
     msg += `\n📌 *#${card.displayId || card.id} ${card.title}* → ${card.list.name}`;

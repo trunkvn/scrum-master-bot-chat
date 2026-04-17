@@ -24,11 +24,17 @@ const cardService = {
       listId = todoList.id;
     }
 
-    // Resolve assignee if mentioned
-    let assigneeId = null;
+    // Resolve assignee
+    let assigneeId = data.assignee_id || null;
     if (data.target_user) {
       const user = await userRepo.findByUsername(data.target_user);
-      if (user) assigneeId = user.id;
+      if (user) {
+        assigneeId = user.id;
+      } else {
+        // If target_user was specified but NOT found, we keep it null 
+        // (to allow caller to show a warning) and don't fall back to sender.
+        assigneeId = null;
+      }
     }
 
     // Parse deadline

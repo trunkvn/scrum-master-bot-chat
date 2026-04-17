@@ -19,6 +19,7 @@ function registerCardCommands(bot) {
       const board = await boardService.getBoard(ctx);
       const card = await cardService.createCard(board.id, {
         card_title: title,
+        assignee_id: ctx.state.user.id,
       });
 
       ctx.reply(
