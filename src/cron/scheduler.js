@@ -20,7 +20,7 @@ function setupScheduler(bot) {
       const boards = await boardRepo.findAll();
 
       for (const board of boards) {
-        if (!board.chatId) continue;
+        if (!board.chatId || !board.chatId.startsWith("-")) continue;
         try {
           bot.telegram.sendMessage(
             board.chatId,
@@ -46,7 +46,7 @@ function setupScheduler(bot) {
       const boards = await boardRepo.findAll();
 
       for (const board of boards) {
-        if (!board.chatId) continue;
+        if (!board.chatId || !board.chatId.startsWith("-")) continue;
         try {
           const report = await reportService.getWeeklyReport(board.id);
           if (report) {
@@ -72,7 +72,7 @@ function setupScheduler(bot) {
       const boards = await boardRepo.findAll();
 
       for (const board of boards) {
-        if (!board.chatId) continue;
+        if (!board.chatId || !board.chatId.startsWith("-")) continue;
         try {
           const customMsg = await generateResponse(
             "Đã đến 12h trưa, hãy viết một lời nhắc nhở nghỉ ngơi và đi ăn trưa hài hước, thân thiện cho team. Kèm emoji sinh động.",
@@ -102,7 +102,7 @@ function setupScheduler(bot) {
       const boards = await boardRepo.findAll();
 
       for (const board of boards) {
-        if (!board.chatId) continue;
+        if (!board.chatId || !board.chatId.startsWith("-")) continue;
         try {
           const report = await reportService.getDailyReport(board.id);
           if (report) {
@@ -127,7 +127,7 @@ function setupScheduler(bot) {
       const boards = await boardRepo.findAll();
 
       for (const board of boards) {
-        if (!board.chatId) continue;
+        if (!board.chatId || !board.chatId.startsWith("-")) continue;
         try {
           const overdue = await cardRepo.findOverdue(board.id);
           const upcoming = await cardRepo.findUpcoming(board.id, 48);
