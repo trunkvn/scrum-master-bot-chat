@@ -46,14 +46,14 @@ BẮT BUỘC TRẢ VỀ DẠNG JSON (chỉ JSON, không text thêm):
 {
   "intent": "<một trong 9 intent>",
   "card_title": "<tên task hoặc null>",
-  "card_id": <số nguyên, trích xuất từ các ký hiệu như #1, task 1, id: 1 hoặc null nếu không có>,
+  "card_ids": [<mảng các số nguyên, trích xuất tất cả các ID được nhắc đến như #1, #2, task 3... hoặc mảng rỗng [] nếu không có>],
   "target_list": "<To Do | In Progress | Review | Done | null>",
   "target_user": "<tên user hoặc null>",
   "deadline": "<DD/MM hoặc DD/MM/YYYY hoặc 'mai' hoặc 'thứ 2..7' hoặc 'cn/chủ nhật' hoặc null>",
   "priority": "<low | medium | high | urgent | null>",
   "chat_response": "<câu trả lời tự nhiên, BẮT BUỘC không được rỗng>"
 }
-- Nếu người dùng nhắc đến ID (Vd: "#1", "task 1"), PHẢI điền vào field "card_id".`;
+- Nếu người dùng nhắc đến nhiều ID (Vd: "#1 và #3", "task 1, 2, 5"), PHẢI trích xuất tất cả vào mảng "card_ids".`;
 
 const FEW_SHOT = `
 VÍ DỤ (chỉ để học cách phân loại, KHÔNG copy nguyên văn):

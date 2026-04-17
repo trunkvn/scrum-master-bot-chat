@@ -441,6 +441,7 @@ async function handleAskMyTasks(ctx, analysis) {
       analysis.chat_response ||
       (isAskingDone
         ? "Đây là các task bạn đã hoàn thành:"
+        : `Task của ${ctx.from.first_name}:`);
     ctx.reply(`${intro}\n${display}`, {
       parse_mode: "Markdown"
     });
