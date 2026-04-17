@@ -332,13 +332,7 @@ async function handleCreateCard(ctx, analysis) {
     }
 
     ctx.reply(msg, {
-      parse_mode: "Markdown",
-      ...Markup.inlineKeyboard([
-        [
-          Markup.button.callback("✅ Hoàn thành", `done:${card.id}`),
-          Markup.button.callback("🔍 Chi tiết", `view:${card.id}`),
-        ],
-      ]),
+      parse_mode: "Markdown"
     });
   } catch (err) {
     log.error("Create card from chat failed", { error: err.message });
@@ -349,32 +343,79 @@ async function handleCreateCard(ctx, analysis) {
 async function handleMoveCard(ctx, analysis) {
   try {
     const board = await boardService.getBoard(ctx);
-    const result = await cardService.moveCard(board.id, {
-      card_id: analysis.card_id,
-      card_title: analysis.card_title,
-      target_list: analysis.target_list || "Done",
-    });
+    const ids = analysis.card_ids?.length ? analysis.card_ids : (analysis.card_id ? [analysis.card_id] : []);
+    const targetList = analysis.target_list || "Done";
 
-    if (result.notFound) {
-      return ctx.reply(
-        analysis.chat_response +
-          "\n⚠️ Nhưng tui không tìm thấy task nào khớp. Check lại tên hoặc dùng #id nhé!",
-      );
+    if (ids.length === 0 && !analysis.card_title) {
+        return ctx.reply("Bạn muốn chuyển task nào? Nhớ kèm #id hoặc tên nha.");
     }
 
-    if (result.ambiguous) {
-      let msg = "Tìm thấy nhiều task khớp, chọn 1 nhé:\n\n";
-      result.matches.forEach((m) => {
-        msg += `• *#${m.id}* ${m.title}\n`;
+    const senderId = ctx.state.user.id;
+
+    // Single card or search by title
+    if (ids.length <= 1) {
+      const result = await cardService.moveCard(board.id, {
+        card_id: ids[0] || analysis.card_id,
+        card_title: analysis.card_title,
+        target_list: targetList,
+        sender_id: senderId
       });
-      msg += `\nDùng /done #id hoặc /move #id [list]`;
+
+      if (result.notFound) {
+        return ctx.reply(
+          analysis.chat_response +
+            "\n⚠️ Nhưng tui không tìm thấy task nào khớp. Check lại tên hoặc dùng #id nhé!",
+        );
+      }
+
+      if (result.ambiguous) {
+        let msg = "Tìm thấy nhiều task khớp, vui lòng dùng #id để chính xác hơn:\n\n";
+        result.matches.forEach((m) => {
+          msg += `• *#${m.id}* ${m.title}\n`;
+        });
+        return ctx.reply(msg, { parse_mode: "Markdown" });
+      }
+
+      if (result.unauthorized) {
+        return ctx.reply(`⚠️ Task *#${result.card.displayId || result.card.id}* hiện đang được giao cho **${result.assigneeName}**. Chỉ người phụ trách mới có quyền cập nhật trạng thái nhé!`, { parse_mode: "Markdown" });
+      }
+
+      let msg = analysis.chat_response || "Đã chuyển!";
+      msg += `\n📦 *#${result.card.displayId || result.card.id} ${result.card.title}* → ${result.listName}`;
+      setLastCardId(ctx, result.card.displayId || result.card.id);
       return ctx.reply(msg, { parse_mode: "Markdown" });
     }
 
-    let msg = analysis.chat_response || "Đã chuyển!";
-    msg += `\n📦 *#${result.card.displayId || result.card.id} ${result.card.title}* → ${result.listName}`;
-    setLastCardId(ctx, result.card.displayId || result.card.id);
-    ctx.reply(msg, { parse_mode: "Markdown" });
+    // Multiple cards
+    const results = [];
+    const unauthorized = [];
+    for (const id of ids) {
+      const res = await cardService.moveCard(board.id, { card_id: id, target_list: targetList, sender_id: senderId });
+      if (res.unauthorized) {
+        unauthorized.push(res);
+      } else if (!res.notFound) {
+        results.push(res);
+      }
+    }
+
+    if (results.length === 0 && unauthorized.length === 0) return ctx.reply("Không tìm thấy các task này 😅");
+
+    let msg = analysis.chat_response || "";
+    if (results.length > 0) {
+      msg += `\nĐã chuyển ${results.length} task sang ${targetList}:`;
+      results.forEach((r) => {
+          msg += `\n📦 *#${r.card.displayId || r.card.id}* → ${r.listName}`;
+      });
+    }
+
+    if (unauthorized.length > 0) {
+      msg += `\n\n⚠️ Có ${unauthorized.length} task không chuyển được do bạn không phụ trách:`;
+      unauthorized.forEach((r) => {
+        msg += `\n• *#${r.card.displayId || r.card.id}* (của ${r.assigneeName})`;
+      });
+    }
+
+    ctx.reply(msg.trim(), { parse_mode: "Markdown" });
   } catch (err) {
     log.error("Move card from chat failed", { error: err.message });
     ctx.reply("Lỗi khi cập nhật task 😅");
@@ -400,14 +441,8 @@ async function handleAskMyTasks(ctx, analysis) {
       analysis.chat_response ||
       (isAskingDone
         ? "Đây là các task bạn đã hoàn thành:"
-        : `Task của ${ctx.from.first_name}:`);
-    const buttons = cards.slice(0, 10).map((c) => {
-      return [Markup.button.callback(`✅ #${c.id}`, `done:${c.id}`)];
-    });
-
     ctx.reply(`${intro}\n${display}`, {
-      parse_mode: "Markdown",
-      ...Markup.inlineKeyboard(buttons),
+      parse_mode: "Markdown"
     });
   } catch (err) {
     log.error("Ask my tasks failed", { error: err.message });
@@ -480,20 +515,57 @@ async function handleAssignCard(ctx, analysis) {
 async function handleSetDeadline(ctx, analysis) {
   try {
     const board = await boardService.getBoard(ctx);
-    const result = await cardService.setDeadline(board.id, {
-      card_id: analysis.card_id,
-      card_title: analysis.card_title,
-      deadline: analysis.deadline,
-    });
+    const ids = analysis.card_ids?.length ? analysis.card_ids : (analysis.card_id ? [analysis.card_id] : []);
 
-    if (result.notFound) return ctx.reply("Không tìm thấy card 😅");
-    if (result.invalidDate)
-      return ctx.reply("Ngày không hợp lệ, dùng DD/MM nha!");
+    if (ids.length === 0 && !analysis.card_title) {
+        return ctx.reply("Bạn muốn set deadline cho task nào? Gõ `#id` (vd: `#2`) nha.", { parse_mode: "Markdown" });
+    }
+
+    if (ids.length <= 1) {
+      const result = await cardService.setDeadline(board.id, {
+        card_id: ids[0] || analysis.card_id,
+        card_title: analysis.card_title,
+        deadline: analysis.deadline,
+      });
+
+      if (result.notFound) return ctx.reply("Không tìm thấy card 😅");
+      if (result.invalidDate) return ctx.reply("Ngày không hợp lệ, dùng DD/MM nha!");
+
+      const { formatDate } = require("../../utils/formatter");
+      let msg = analysis.chat_response || "Đã set deadline!";
+      msg += `\n⏰ *#${result.card.displayId || result.card.id}* → ${formatDate(result.card.dueDate)}`;
+      setLastCardId(ctx, result.card.displayId || result.card.id);
+      return ctx.reply(msg, { parse_mode: "Markdown" });
+    }
+
+    const results = [];
+    const notFoundIds = [];
+    const invalidIds = [];
+
+    for (const id of ids) {
+      const result = await cardService.setDeadline(board.id, {
+        card_id: id,
+        deadline: analysis.deadline,
+      });
+      if (result.notFound) notFoundIds.push(id);
+      else if (result.invalidDate) invalidIds.push(id);
+      else results.push(result);
+    }
+
+    if (results.length === 0) {
+      if (invalidIds.length > 0) return ctx.reply("Ngày bạn nhập không hợp lệ, vui lòng dùng định dạng DD/MM nha!");
+      return ctx.reply(`Không tìm thấy các task: ${notFoundIds.map(id => `#${id}`).join(", ")} 😅`);
+    }
 
     const { formatDate } = require("../../utils/formatter");
-    let msg = analysis.chat_response || "Đã set deadline!";
-    msg += `\n⏰ *#${result.card.displayId || result.card.id}* → ${formatDate(result.card.dueDate)}`;
-    setLastCardId(ctx, result.card.displayId || result.card.id);
+    let msg = analysis.chat_response || `Đã set deadline cho ${results.length} task:`;
+    results.forEach(r => {
+      msg += `\n⏰ *#${r.card.displayId || r.card.id}* → ${formatDate(r.card.dueDate)}`;
+      setLastCardId(ctx, r.card.displayId || r.card.id);
+    });
+
+    if (notFoundIds.length > 0) msg += `\n\n⚠️ (Không tìm thấy: ${notFoundIds.map(id => `#${id}`).join(", ")})`;
+
     ctx.reply(msg, { parse_mode: "Markdown" });
   } catch (err) {
     log.error("Set deadline from chat failed", { error: err.message });
@@ -552,10 +624,7 @@ async function handleSearchCard(ctx, analysis) {
 
       setLastCardId(ctx, card.displayId || card.id);
       return ctx.reply(msg, {
-        parse_mode: "Markdown",
-        ...Markup.inlineKeyboard([
-          [Markup.button.callback("🔍 Chi tiết", `view:${card.id}`)],
-        ]),
+        parse_mode: "Markdown"
       });
     }
 
@@ -576,15 +645,27 @@ async function handleSearchCard(ctx, analysis) {
 async function handleDeleteCard(ctx, analysis) {
   try {
     const board = await boardService.getBoard(ctx);
+    const ids = analysis.card_ids?.length ? analysis.card_ids : (analysis.card_id ? [analysis.card_id] : []);
 
-    if (analysis.card_id) {
-      const card = await cardService.getCardByDisplayId(
-        board.id,
-        analysis.card_id,
-      );
-      if (!card) return ctx.reply("Không tìm thấy card 😅");
-      const token = setPendingDelete(ctx, [card.id]);
-      const msg = `🗑️ Bạn chắc muốn xoá task *#${card.displayId || card.id}* không?`;
+    if (ids.length > 0) {
+      const cards = [];
+      const notFoundIds = [];
+      
+      for (const id of ids) {
+        const card = await cardService.getCardByDisplayId(board.id, id);
+        if (card) cards.push(card);
+        else notFoundIds.push(id);
+      }
+
+      if (cards.length === 0) return ctx.reply(`Không tìm thấy các task: ${notFoundIds.map(id => `#${id}`).join(", ")} 😅`);
+
+      const token = setPendingDelete(ctx, cards.map(c => c.id));
+      let msg = `🗑️ Bạn chắc muốn xoá ${cards.length} task này không?\n`;
+      cards.forEach(c => {
+         msg += `\n• *#${c.displayId || c.id}* ${c.title}`;
+      });
+      if (notFoundIds.length > 0) msg += `\n\n⚠️ Có các task không tìm thấy: ${notFoundIds.map(id => `#${id}`).join(", ")}`;
+
       return ctx.reply(msg, {
         parse_mode: "Markdown",
         ...Markup.inlineKeyboard([

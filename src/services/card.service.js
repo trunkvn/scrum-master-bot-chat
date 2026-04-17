@@ -83,6 +83,11 @@ const cardService = {
 
     if (!card) return { notFound: true };
 
+    // Authorization check: only the assignee can transition the card.
+    if (data.sender_id && card.assigneeId && card.assigneeId !== data.sender_id) {
+       return { unauthorized: true, assigneeName: card.assignee.firstName, card };
+    }
+
     // Find target list
     const targetList = await listRepo.findByFuzzyName(
       boardId,

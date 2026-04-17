@@ -134,16 +134,12 @@ function setupScheduler(bot) {
 
           if (overdue.length > 0 || upcoming.length > 0) {
             let msg = "";
-            const buttons = [];
 
             if (overdue.length > 0) {
               msg += "🔴 *CẢNH BÁO QUÁ HẠN:*\n";
               overdue.forEach((c) => {
                 const who = c.assignee ? `@${escapeMarkdown(c.assignee.firstName)}` : "chưa assign";
                 msg += `• *#${c.displayId || c.id} ${escapeMarkdown(c.title)}* — ${who}\n`;
-                if (buttons.length < 10) {
-                  buttons.push([Markup.button.callback(`✅ Xong #${c.displayId || c.id}`, `done:${c.id}`)]);
-                }
               });
               msg += "\n";
             }
@@ -160,8 +156,7 @@ function setupScheduler(bot) {
             
             bot.telegram.sendMessage(board.chatId, msg, {
               parse_mode: "Markdown",
-              message_thread_id: board.topicId,
-              ...(buttons.length > 0 ? Markup.inlineKeyboard(buttons) : {})
+              message_thread_id: board.topicId
             });
           }
         } catch (err) {
