@@ -59,6 +59,20 @@ function registerBoardCommands(bot) {
       ctx.reply("❌ Lỗi khi tạo board.");
     }
   });
+  // /set_notify_topic — Bind board notifications to the current topic
+  bot.command("set_notify_topic", async (ctx) => {
+    try {
+      const topicId = ctx.message?.message_thread_id || ctx.callbackQuery?.message?.message_thread_id;
+      const board = await boardService.getBoard(ctx);
+      await boardRepo.updateTopicId(board.id, topicId);
+      
+      const topicDesc = topicId ? `topic hiện tại` : "nhóm chung (General)";
+      ctx.reply(`✅ Đã cấu hình luồng báo cáo! Từ nay Bot sẽ gửi thông báo Standup/Cronjob vào ${topicDesc}.`);
+    } catch (err) {
+      log.error("Set notify topic failed", { error: err.message });
+      ctx.reply("❌ Lỗi cấu hình luồng thông báo.");
+    }
+  });
 }
 
 module.exports = { registerBoardCommands };

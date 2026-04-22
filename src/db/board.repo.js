@@ -85,17 +85,25 @@ const boardRepo = {
   async getOrCreateForChat(chatId, chatTitle, ownerId, topicId = null) {
     let board = await this.findByChatId(chatId);
     if (!board) {
-      board = await this.create(
-        chatTitle || "Main Board",
-        ownerId,
-        chatId,
-        topicId
-      );
-      // Re-fetch with full relations
-      board = await this.findById(board.id);
-    } else if (topicId && board.topicId !== topicId.toString()) {
-      // Sync topicId if provided and different
-      board = await this.updateTopicId(board.id, topicId);
+      try {
+        board = await this.create(
+          chatTitle || "Main Board",
+          ownerId,
+          chatId,
+          topicId
+        );
+      } catch (err) {
+        // Handle Unique constraint failed (Race condition)
+        if (err.code === "P2002") {
+          board = await this.findByChatId(chatId);
+        } else {
+          throw err;
+        }
+      }
+      if (board) {
+        // Re-fetch with full relations
+        board = await this.findById(board.id);
+      }
     }
     return board;
   },

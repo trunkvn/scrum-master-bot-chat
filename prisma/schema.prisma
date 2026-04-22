@@ -41,7 +41,7 @@ model Board {
   lists  List[]
   labels Label[]
 
-  @@index([chatId])
+  @@unique([chatId])
 }
 
 // ─── Lists (Columns: To Do, In Progress, Done, etc.) ───
